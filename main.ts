@@ -13,6 +13,7 @@ interface GHSyncSettings {
 	isSyncOnLoad: boolean;
 	checkStatusOnLoad: boolean;
 	commitMessageTemplate: string;
+	branch: string;
 }
 
 const DEFAULT_SETTINGS: GHSyncSettings = {
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS: GHSyncSettings = {
 	isSyncOnLoad: false,
 	checkStatusOnLoad: true,
 	commitMessageTemplate: '{{hostname}} {{date}} {{time}}',
+	branch: 'main',
 }
 
 /**
@@ -159,10 +161,11 @@ export default class GHSyncPlugin extends Plugin {
 		}
 
 
-		// git pull origin main
+		// git pull origin <branch>
+		const branch = this.settings.branch || DEFAULT_SETTINGS.branch;
 		try {
 			//@ts-ignore
-			await git.pull('origin', 'main', { '--no-rebase': null }, (err, update) => {
+			await git.pull('origin', branch, { '--no-rebase': null }, (err, update) => {
 				if (update) {
 					new Notice("GitHub Sync: Pulled " + update.summary.changes + " changes");
 				}
@@ -199,10 +202,10 @@ export default class GHSyncPlugin extends Plugin {
 		}
 
 		// resolve merge conflicts
-		// git push origin main
+		// git push origin <branch>
 	    if (!clean) {
 		    try {
-		    	git.push('origin', 'main', ['-u']);
+		    	git.push('origin', branch, ['-u']);
 		    	new Notice("GitHub Sync: Pushed on " + msg);
 		    } catch (e) {
 		    	new Notice(e, 10000);
@@ -214,18 +217,21 @@ export default class GHSyncPlugin extends Plugin {
 	{
 		// check status
 		try {
+			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 			simpleGitOptions = {
 				//@ts-ignore
 			    baseDir: this.app.vault.adapter.getBasePath(),
-			    binary: this.settings.gitLocation + "git",
+			    binary: gitBinary,
 			    maxConcurrentProcesses: 6,
 			    trimmed: false,
 			};
 			git = simpleGit(simpleGitOptions);
 
+			const branch = this.settings.branch || DEFAULT_SETTINGS.branch;
+
 			//check for remote changes
-			// git branch --set-upstream-to=origin/main main
-			await git.branch({'--set-upstream-to': 'origin/main'});
+			// git branch --set-upstream-to=origin/<branch>
+			await git.branch({'--set-upstream-to': `origin/${branch}`});
 			let statusUponOpening = await git.fetch().status();
 			if (statusUponOpening.behind > 0)
 			{
@@ -302,6 +308,102 @@ export default class GHSyncPlugin extends Plugin {
 		if (!this.settings.remoteURL) {
 			await this.readRemoteFromGitConfig();
 		}
+
+		// If branch is not set, try to read current branch from git
+		if (!this.settings.branch) {
+			await this.readBranchFromGit();
+		}
+	}
+
+	/**
+	 * Read current branch from git if available
+	 */
+	async readBranchFromGit() {
+		const currentBranch = await this.getCurrentBranch();
+		if (currentBranch) {
+			this.settings.branch = currentBranch;
+			await this.saveSettings();
+		}
+	}
+
+	/**
+	 * Get the current branch name from git
+	 */
+	async getCurrentBranch(): Promise<string | null> {
+		try {
+			//@ts-ignore
+			const basePath = this.app.vault.adapter.getBasePath();
+			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+
+			const tempGit = simpleGit({
+				baseDir: basePath,
+				binary: gitBinary,
+				maxConcurrentProcesses: 6,
+				trimmed: false,
+			});
+
+			const branchSummary = await tempGit.branchLocal();
+			return branchSummary.current || null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Get list of available local branches
+	 */
+	async getLocalBranches(): Promise<string[]> {
+		try {
+			//@ts-ignore
+			const basePath = this.app.vault.adapter.getBasePath();
+			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+
+			const tempGit = simpleGit({
+				baseDir: basePath,
+				binary: gitBinary,
+				maxConcurrentProcesses: 6,
+				trimmed: false,
+			});
+
+			const branchSummary = await tempGit.branchLocal();
+			return branchSummary.all || [];
+		} catch (e) {
+			return [];
+		}
+	}
+
+	/**
+	 * Switch to a different branch
+	 */
+	async switchBranch(branchName: string): Promise<boolean> {
+		try {
+			//@ts-ignore
+			const basePath = this.app.vault.adapter.getBasePath();
+			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+
+			const tempGit = simpleGit({
+				baseDir: basePath,
+				binary: gitBinary,
+				maxConcurrentProcesses: 6,
+				trimmed: false,
+			});
+
+			// Check for uncommitted changes
+			const status = await tempGit.status();
+			if (!status.isClean()) {
+				new Notice("GitHub Sync: Cannot switch branches with uncommitted changes.\n\nCommit or stash your changes first.", 10000);
+				return false;
+			}
+
+			await tempGit.checkout(branchName);
+			this.settings.branch = branchName;
+			await this.saveSettings();
+			new Notice(`GitHub Sync: Switched to branch '${branchName}'`);
+			return true;
+		} catch (e: any) {
+			new Notice("GitHub Sync: Failed to switch branch - " + (e?.message || e), 10000);
+			return false;
+		}
 	}
 
 	/**
@@ -371,6 +473,60 @@ class GHSyncSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
         	.inputEl.addClass('my-plugin-setting-text'));
+
+		// Branch setting with dropdown
+		const branchSetting = new Setting(containerEl)
+			.setName('Branch')
+			.setDesc('Select the branch to sync with. You can type a branch name or select from available local branches.');
+
+		// Create text input with datalist for branch suggestions
+		branchSetting.addText(text => {
+			text.setPlaceholder('main')
+				.setValue(this.plugin.settings.branch)
+				.onChange(async (value) => {
+					this.plugin.settings.branch = value;
+					await this.plugin.saveSettings();
+				});
+
+			// Load branches asynchronously and populate datalist
+			const inputEl = text.inputEl;
+			const datalistId = 'branch-suggestions';
+			inputEl.setAttribute('list', datalistId);
+
+			const datalist = document.createElement('datalist');
+			datalist.id = datalistId;
+			inputEl.parentElement?.appendChild(datalist);
+
+			// Fetch branches and populate datalist
+			this.plugin.getLocalBranches().then(branches => {
+				datalist.empty();
+				for (const branch of branches) {
+					const option = document.createElement('option');
+					option.value = branch;
+					datalist.appendChild(option);
+				}
+			});
+
+			return text;
+		});
+
+		// Add refresh button to reload branches
+		branchSetting.addButton(button => button
+			.setButtonText('Refresh')
+			.setTooltip('Refresh branch list')
+			.onClick(async () => {
+				const branches = await this.plugin.getLocalBranches();
+				const datalist = containerEl.querySelector('#branch-suggestions');
+				if (datalist) {
+					datalist.empty();
+					for (const branch of branches) {
+						const option = document.createElement('option');
+						option.value = branch;
+						datalist.appendChild(option);
+					}
+				}
+				new Notice(`Found ${branches.length} local branches`);
+			}));
 
 		new Setting(containerEl)
 			.setName('git binary location')

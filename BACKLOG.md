@@ -81,24 +81,23 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-## P1 - High Priority Features (Remaining)
-
-### Branch Switching Support
+### ✅ Branch Switching Support
 **Source**: [#31](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/31)
-**Status**: Open
+**Status**: **COMPLETED**
 
 **Request**: Ability to switch branches within the plugin for team/enterprise use cases.
 
-**Proposed Implementation**:
-- Add branch selector dropdown in settings or ribbon menu
-- Show current branch in status
-- Commands: "Switch Branch", "Create Branch"
+**Solution**:
+- Added `branch` setting with text input and datalist dropdown
+- Auto-detects current branch from git on first load
+- Syncs to any branch (not just `main`)
+- Refresh button to reload branch list
 - Warning when switching with uncommitted changes
-
-**Complexity**: Medium
-**Impact**: High for team use cases
+- Helper methods: `getCurrentBranch()`, `getLocalBranches()`, `switchBranch()`
 
 ---
+
+## P1 - High Priority Features (Remaining)
 
 ### Git Directory Selection
 **Source**: [#27](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/27)
@@ -189,16 +188,18 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 | Priority | Total | Completed | Remaining |
 |----------|-------|-----------|-----------|
 | P0 | 2 | 2 | 0 |
-| P1 | 4 | 2 | 2 |
+| P1 | 4 | 3 | 1 |
 | P2 | 5 | 2 | 3 |
 | P3 | 1 | 0 | 1 |
-| **Total** | **12** | **6** | **6** |
+| **Total** | **12** | **7** | **5** |
 
 ### What's New in This Release
 
-1. **Custom commit messages** - Configure your own commit message format with variables
-2. **Preserved upstream tracking** - CLI git commands work correctly after sync
-3. **Auto-detect remote URL** - Plugin reads existing git config on first load
-4. **Better conflict display** - Conflicted files now shown with bullet points
-5. **Improved error messages** - Specific, actionable error messages for each failure type
-6. **Consistent messaging** - "URL" properly capitalised throughout
+1. **Branch switching support** - Sync to any branch, not just main
+2. **Custom commit messages** - Configure your own commit message format with variables
+3. **Preserved upstream tracking** - CLI git commands work correctly after sync
+4. **Auto-detect remote URL** - Plugin reads existing git config on first load
+5. **Auto-detect branch** - Plugin reads current branch on first load
+6. **Better conflict display** - Conflicted files now shown with bullet points
+7. **Improved error messages** - Specific, actionable error messages for each failure type
+8. **Consistent messaging** - "URL" properly capitalised throughout

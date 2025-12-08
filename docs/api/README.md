@@ -14,6 +14,7 @@ interface GHSyncSettings {
   isSyncOnLoad: boolean;
   checkStatusOnLoad: boolean;
   commitMessageTemplate: string;
+  branch: string;
 }
 ```
 
@@ -22,6 +23,7 @@ interface GHSyncSettings {
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `remoteURL` | string | `""` | GitHub repository URL (HTTPS or SSH format). Auto-populated from `.git/config` if available. |
+| `branch` | string | `"main"` | Branch to sync with. Auto-populated from current git branch if available. |
 | `gitLocation` | string | `""` | Optional path to Git binary directory |
 | `syncinterval` | number | `0` | Auto-sync interval in minutes (0 = disabled) |
 | `isSyncOnLoad` | boolean | `false` | Automatically sync on startup if behind remote |
@@ -51,6 +53,34 @@ Requires SSH key to be configured with GitHub.
 ### Auto-Detection
 
 If your vault is already a Git repository with a configured remote, the plugin will automatically read the remote URL from `.git/config` on first load.
+
+---
+
+## Branch Configuration
+
+The plugin allows you to specify which branch to sync with.
+
+### Default Behaviour
+
+- Defaults to `main` if no branch is configured
+- Auto-detects the current branch from your git repository on first load
+- Supports any branch name (main, master, develop, feature branches, etc.)
+
+### Branch Selection in Settings
+
+The Branch setting in the plugin settings provides:
+- A text input for typing a branch name
+- A dropdown list of available local branches
+- A "Refresh" button to reload the branch list
+
+### Switching Branches
+
+When changing branches:
+1. The plugin checks for uncommitted changes
+2. If clean, it switches to the new branch with `git checkout`
+3. Updates the setting to remember the branch
+
+> **Warning:** You cannot switch branches with uncommitted changes. Commit or stash your changes first.
 
 ---
 
@@ -146,6 +176,8 @@ The plugin communicates status through Obsidian notices:
 | "GitHub Sync: X commits behind remote..." | Local is behind (on startup check) |
 | "GitHub Sync: up to date with remote." | Local matches remote |
 | "GitHub Sync: Merge conflicts in: [files]" | Conflicts detected during pull |
+| "GitHub Sync: Switched to branch '[name]'" | Branch successfully changed |
+| "Found X local branches" | Branch list refreshed |
 
 ### Error Messages
 
@@ -157,6 +189,8 @@ The plugin communicates status through Obsidian notices:
 | "Invalid remote URL or network error" | Bad URL or no internet | Check URL and network connection |
 | "Commit failed" | Git commit error | Check git status manually |
 | "Pull failed" | Git pull error | Check for conflicts or network issues |
+| "Cannot switch branches with uncommitted changes" | Dirty working tree | Commit or stash changes first |
+| "Failed to switch branch" | Git checkout error | Check branch exists and permissions |
 
 ---
 
@@ -175,6 +209,7 @@ Example `data.json`:
   "syncinterval": 30,
   "isSyncOnLoad": true,
   "checkStatusOnLoad": true,
-  "commitMessageTemplate": "{{hostname}} {{date}} {{time}}"
+  "commitMessageTemplate": "{{hostname}} {{date}} {{time}}",
+  "branch": "main"
 }
 ```
