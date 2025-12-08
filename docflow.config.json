@@ -7,7 +7,7 @@
                  },
     "version":  "1.0.0",
     "project":  {
-                    "description":  "",
+                    "description":  "A lightweight Obsidian plugin for syncing your vault to GitHub, enabling seamless cross-device synchronisation.",
                     "name":  "JANUS: Obsidian GitHub Sync Plugin",
                     "language":  "Australian English",
                     "type":  "auto"
