@@ -1,0 +1,44 @@
+{
+    "releases":  {
+                     "versioning":  {
+                                        "strategy":  "semver"
+                                    },
+                     "enabled":  true
+                 },
+    "version":  "1.0.0",
+    "project":  {
+                    "description":  "",
+                    "name":  "JANUS: Obsidian GitHub Sync Plugin",
+                    "language":  "Australian English",
+                    "type":  "auto"
+                },
+    "templates":  {
+                      "adr":  {
+                                  "directory":  "docs/architecture/adr",
+                                  "enabled":  true
+                              },
+                      "scaffold":  {
+                                       "enabled":  true
+                                   },
+                      "runbooks":  {
+                                       "directory":  "docs/runbooks",
+                                       "enabled":  true
+                                   }
+                  },
+    "linting":  {
+                    "failOnError":  true,
+                    "enabled":  true
+                },
+    "security":  {
+                     "secretScanning":  {
+                                            "enabled":  true
+                                        },
+                     "owaspZap":  {
+                                      "enabled":  false
+                                  },
+                     "codeql":  {
+                                    "enabled":  true
+                                }
+                 },
+    "$schema":  "./docflow.schema.json"
+}
