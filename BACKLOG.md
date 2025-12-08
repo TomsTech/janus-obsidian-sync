@@ -127,18 +127,17 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-### PATH Environment Variable Support
+### ✅ PATH Environment Variable Support
 **Source**: [#28](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/28)
-**Status**: Open
+**Status**: **COMPLETED**
 
 **Problem**: Git LFS and other git extensions fail silently because their binaries aren't in PATH.
 
-**Proposed Implementation**:
-- Add setting to specify additional PATH directories
-- Or inherit system PATH properly in Electron environment
-
-**Complexity**: Medium
-**Impact**: Medium
+**Solution**:
+- Added `additionalPath` setting to specify additional directories to add to PATH
+- Paths are prepended to the existing PATH when running git commands
+- Works with Git LFS, git-crypt, and other extensions
+- Helper methods `getGitEnv()` and `createGit()` centralise environment configuration
 
 ---
 
@@ -186,19 +185,20 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 |----------|-------|-----------|-----------|
 | P0 | 2 | 2 | 0 |
 | P1 | 4 | 4 | 0 |
-| P2 | 5 | 3 | 2 |
+| P2 | 5 | 4 | 1 |
 | P3 | 1 | 0 | 1 |
-| **Total** | **12** | **9** | **3** |
+| **Total** | **12** | **10** | **2** |
 
 ### What's New in This Release
 
 1. **Branch switching support** - Sync to any branch, not just main
 2. **Git directory selection** - Sync a subdirectory instead of the entire vault
 3. **GPG signing workaround** - Option to disable GPG signing for plugin commits
-4. **Custom commit messages** - Configure your own commit message format with variables
-5. **Preserved upstream tracking** - CLI git commands work correctly after sync
-6. **Auto-detect remote URL** - Plugin reads existing git config on first load
-7. **Auto-detect branch** - Plugin reads current branch on first load
-8. **Better conflict display** - Conflicted files now shown with bullet points
-9. **Improved error messages** - Specific, actionable error messages for each failure type
-10. **Consistent messaging** - "URL" properly capitalised throughout
+4. **Additional PATH support** - Add directories for Git LFS and other extensions
+5. **Custom commit messages** - Configure your own commit message format with variables
+6. **Preserved upstream tracking** - CLI git commands work correctly after sync
+7. **Auto-detect remote URL** - Plugin reads existing git config on first load
+8. **Auto-detect branch** - Plugin reads current branch on first load
+9. **Better conflict display** - Conflicted files now shown with bullet points
+10. **Improved error messages** - Specific, actionable error messages for each failure type
+11. **Consistent messaging** - "URL" properly capitalised throughout

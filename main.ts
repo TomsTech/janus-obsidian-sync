@@ -10,6 +10,7 @@ interface GHSyncSettings {
 	remoteURL: string;
 	gitLocation: string;
 	gitDirectory: string;
+	additionalPath: string;
 	syncinterval: number;
 	isSyncOnLoad: boolean;
 	checkStatusOnLoad: boolean;
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS: GHSyncSettings = {
 	remoteURL: '',
 	gitLocation: '',
 	gitDirectory: '',
+	additionalPath: '',
 	syncinterval: 0,
 	isSyncOnLoad: false,
 	checkStatusOnLoad: true,
@@ -76,6 +78,46 @@ export default class GHSyncPlugin extends Plugin {
 		return vaultPath;
 	}
 
+	/**
+	 * Get environment with additional PATH directories
+	 */
+	getGitEnv(): { [key: string]: string } | undefined {
+		if (!this.settings.additionalPath || !this.settings.additionalPath.trim()) {
+			return undefined;
+		}
+
+		const additionalPaths = this.settings.additionalPath.trim();
+		const currentPath = process.env.PATH || '';
+		const pathSeparator = process.platform === 'win32' ? ';' : ':';
+
+		return {
+			...process.env,
+			PATH: additionalPaths + pathSeparator + currentPath
+		} as { [key: string]: string };
+	}
+
+	/**
+	 * Create a configured SimpleGit instance
+	 */
+	createGit(): SimpleGit {
+		const basePath = this.getGitBasePath();
+		const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+		const customEnv = this.getGitEnv();
+
+		const gitInstance = simpleGit({
+			baseDir: basePath,
+			binary: gitBinary,
+			maxConcurrentProcesses: 6,
+			trimmed: false,
+		});
+
+		if (customEnv) {
+			gitInstance.env(customEnv);
+		}
+
+		return gitInstance;
+	}
+
 	async SyncNotes()
 	{
 		new Notice("Syncing to GitHub remote");
@@ -90,6 +132,7 @@ export default class GHSyncPlugin extends Plugin {
 
 		const basePath = this.getGitBasePath();
 		const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+		const customEnv = this.getGitEnv();
 
 		simpleGitOptions = {
 			baseDir: basePath,
@@ -98,6 +141,11 @@ export default class GHSyncPlugin extends Plugin {
 			trimmed: false,
 		};
 		git = simpleGit(simpleGitOptions);
+
+		// Set custom environment if additional PATH is configured
+		if (customEnv) {
+			git.env(customEnv);
+		}
 
 		let os = require("os");
 		let hostname = os.hostname();
@@ -245,6 +293,7 @@ export default class GHSyncPlugin extends Plugin {
 		// check status
 		try {
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+			const customEnv = this.getGitEnv();
 			simpleGitOptions = {
 			    baseDir: this.getGitBasePath(),
 			    binary: gitBinary,
@@ -252,6 +301,9 @@ export default class GHSyncPlugin extends Plugin {
 			    trimmed: false,
 			};
 			git = simpleGit(simpleGitOptions);
+			if (customEnv) {
+				git.env(customEnv);
+			}
 
 			const branch = this.settings.branch || DEFAULT_SETTINGS.branch;
 
@@ -357,16 +409,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async getCurrentBranch(): Promise<string | null> {
 		try {
-			const basePath = this.getGitBasePath();
-			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
-
-			const tempGit = simpleGit({
-				baseDir: basePath,
-				binary: gitBinary,
-				maxConcurrentProcesses: 6,
-				trimmed: false,
-			});
-
+			const tempGit = this.createGit();
 			const branchSummary = await tempGit.branchLocal();
 			return branchSummary.current || null;
 		} catch (e) {
@@ -379,16 +422,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async getLocalBranches(): Promise<string[]> {
 		try {
-			const basePath = this.getGitBasePath();
-			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
-
-			const tempGit = simpleGit({
-				baseDir: basePath,
-				binary: gitBinary,
-				maxConcurrentProcesses: 6,
-				trimmed: false,
-			});
-
+			const tempGit = this.createGit();
 			const branchSummary = await tempGit.branchLocal();
 			return branchSummary.all || [];
 		} catch (e) {
@@ -401,15 +435,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async switchBranch(branchName: string): Promise<boolean> {
 		try {
-			const basePath = this.getGitBasePath();
-			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
-
-			const tempGit = simpleGit({
-				baseDir: basePath,
-				binary: gitBinary,
-				maxConcurrentProcesses: 6,
-				trimmed: false,
-			});
+			const tempGit = this.createGit();
 
 			// Check for uncommitted changes
 			const status = await tempGit.status();
@@ -434,16 +460,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async readRemoteFromGitConfig() {
 		try {
-			const basePath = this.getGitBasePath();
-			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
-
-			const tempGit = simpleGit({
-				baseDir: basePath,
-				binary: gitBinary,
-				maxConcurrentProcesses: 6,
-				trimmed: false,
-			});
-
+			const tempGit = this.createGit();
 			const remotes = await tempGit.getRemotes(true);
 			const origin = remotes.find(r => r.name === 'origin');
 
@@ -570,6 +587,18 @@ class GHSyncSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.gitLocation)
 				.onChange(async (value) => {
 					this.plugin.settings.gitLocation = value;
+					await this.plugin.saveSettings();
+				})
+        	.inputEl.addClass('my-plugin-setting-text2'));
+
+		new Setting(containerEl)
+			.setName('Additional PATH directories')
+			.setDesc('Additional directories to add to PATH for git extensions like Git LFS. Separate multiple paths with ; (Windows) or : (Mac/Linux).')
+			.addText(text => text
+				.setPlaceholder('e.g., /usr/local/bin or C:\\Program Files\\Git LFS')
+				.setValue(this.plugin.settings.additionalPath)
+				.onChange(async (value) => {
+					this.plugin.settings.additionalPath = value;
 					await this.plugin.saveSettings();
 				})
         	.inputEl.addClass('my-plugin-setting-text2'));

@@ -11,6 +11,7 @@ interface GHSyncSettings {
   remoteURL: string;
   gitLocation: string;
   gitDirectory: string;
+  additionalPath: string;
   syncinterval: number;
   isSyncOnLoad: boolean;
   checkStatusOnLoad: boolean;
@@ -28,6 +29,7 @@ interface GHSyncSettings {
 | `branch` | string | `"main"` | Branch to sync with. Auto-populated from current git branch if available. |
 | `gitDirectory` | string | `""` | Optional subdirectory within the vault where the .git folder is located. |
 | `gitLocation` | string | `""` | Optional path to Git binary directory |
+| `additionalPath` | string | `""` | Additional directories to add to PATH for git extensions (e.g., Git LFS) |
 | `syncinterval` | number | `0` | Auto-sync interval in minutes (0 = disabled) |
 | `isSyncOnLoad` | boolean | `false` | Automatically sync on startup if behind remote |
 | `checkStatusOnLoad` | boolean | `true` | Check remote status when Obsidian opens |
@@ -134,6 +136,39 @@ C:\Program Files\Git\bin\
 ```
 
 > **Note:** Include the trailing slash. The plugin appends `git` to this path.
+
+---
+
+## Additional PATH Directories
+
+Git extensions like Git LFS may fail because their binaries aren't in Obsidian's PATH. Use this setting to add directories containing these binaries.
+
+### Use Cases
+
+- **Git LFS**: Large File Storage extension
+- **git-crypt**: Encrypted file support
+- **Custom hooks**: Scripts that require additional binaries
+
+### Configuration
+
+Enter the path(s) to directories containing the required binaries:
+
+**Windows:**
+```
+C:\Program Files\Git LFS
+```
+
+**macOS:**
+```
+/usr/local/bin:/opt/homebrew/bin
+```
+
+**Linux:**
+```
+/usr/local/bin:/snap/bin
+```
+
+> **Note:** Separate multiple paths with `;` on Windows or `:` on Mac/Linux.
 
 ---
 
@@ -253,6 +288,7 @@ Example `data.json`:
   "remoteURL": "git@github.com:user/vault.git",
   "gitLocation": "",
   "gitDirectory": "",
+  "additionalPath": "",
   "syncinterval": 30,
   "isSyncOnLoad": true,
   "checkStatusOnLoad": true,
