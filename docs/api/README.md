@@ -16,6 +16,7 @@ interface GHSyncSettings {
   checkStatusOnLoad: boolean;
   commitMessageTemplate: string;
   branch: string;
+  disableGpgSigning: boolean;
 }
 ```
 
@@ -31,6 +32,7 @@ interface GHSyncSettings {
 | `isSyncOnLoad` | boolean | `false` | Automatically sync on startup if behind remote |
 | `checkStatusOnLoad` | boolean | `true` | Check remote status when Obsidian opens |
 | `commitMessageTemplate` | string | `"{{hostname}} {{date}} {{time}}"` | Template for commit messages |
+| `disableGpgSigning` | boolean | `false` | Disable GPG commit signing for plugin commits |
 
 ---
 
@@ -135,6 +137,23 @@ C:\Program Files\Git\bin\
 
 ---
 
+## GPG Signing
+
+If you have GPG commit signing enabled in your git configuration, the plugin may fail with errors like "cannot run gpg: No such file or directory".
+
+### Solution
+
+Enable the "Disable GPG signing" toggle in the plugin settings. This will:
+- Skip GPG signing for commits made by the plugin
+- Not affect your global git configuration
+- Allow commits to succeed without GPG
+
+### Why This Happens
+
+Obsidian's Electron environment may not have access to your GPG binary or keychain. The plugin provides this option to work around this limitation while keeping your global git config intact.
+
+---
+
 ## Commit Message Template
 
 Customise how commit messages are formatted using template variables.
@@ -214,6 +233,7 @@ The plugin communicates status through Obsidian notices:
 | "Git binary not found" | Git not installed or not in PATH | Install Git or set binary location |
 | "Invalid remote URL or network error" | Bad URL or no internet | Check URL and network connection |
 | "Commit failed" | Git commit error | Check git status manually |
+| "Commit failed due to GPG signing" | GPG not available | Enable "Disable GPG signing" in settings |
 | "Pull failed" | Git pull error | Check for conflicts or network issues |
 | "Cannot switch branches with uncommitted changes" | Dirty working tree | Commit or stash changes first |
 | "Failed to switch branch" | Git checkout error | Check branch exists and permissions |
@@ -237,6 +257,7 @@ Example `data.json`:
   "isSyncOnLoad": true,
   "checkStatusOnLoad": true,
   "commitMessageTemplate": "{{hostname}} {{date}} {{time}}",
-  "branch": "main"
+  "branch": "main",
+  "disableGpgSigning": false
 }
 ```

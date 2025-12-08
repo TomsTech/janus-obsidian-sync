@@ -15,6 +15,7 @@ interface GHSyncSettings {
 	checkStatusOnLoad: boolean;
 	commitMessageTemplate: string;
 	branch: string;
+	disableGpgSigning: boolean;
 }
 
 const DEFAULT_SETTINGS: GHSyncSettings = {
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: GHSyncSettings = {
 	checkStatusOnLoad: true,
 	commitMessageTemplate: '{{hostname}} {{date}} {{time}}',
 	branch: 'main',
+	disableGpgSigning: false,
 }
 
 /**
@@ -135,11 +137,21 @@ export default class GHSyncPlugin extends Plugin {
 		// git add . && git commit
 		if (!clean) {
 			try {
-				await git
-					.add("./*")
-					.commit(msg);
+				await git.add("./*");
+				// Optionally disable GPG signing for users who have it enabled globally
+				if (this.settings.disableGpgSigning) {
+					await git.raw(['commit', '-m', msg, '-c', 'commit.gpgsign=false']);
+				} else {
+					await git.commit(msg);
+				}
 			} catch (e: any) {
-				new Notice("GitHub Sync: Commit failed - " + (e?.message || e), 10000);
+				const errorMsg = e?.message || String(e);
+				// Provide helpful message for GPG signing errors
+				if (errorMsg.includes('gpg') || errorMsg.includes('signing')) {
+					new Notice("GitHub Sync: Commit failed due to GPG signing.\n\nEnable 'Disable GPG signing' in settings, or configure GPG.", 15000);
+				} else {
+					new Notice("GitHub Sync: Commit failed - " + errorMsg, 10000);
+				}
 				return;
 			}
 		} else {
@@ -603,5 +615,15 @@ class GHSyncSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			.inputEl.addClass('my-plugin-setting-text'));
+
+		new Setting(containerEl)
+			.setName('Disable GPG signing')
+			.setDesc('Disable GPG commit signing for this plugin. Enable this if commits fail with GPG errors.')
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.disableGpgSigning)
+				.onChange(async (value) => {
+					this.plugin.settings.disableGpgSigning = value;
+					await this.plugin.saveSettings();
+				}));
 	}
 }

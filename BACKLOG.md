@@ -113,19 +113,17 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ## P2 - Quality of Life (Remaining)
 
-### GPG Commit Signing Support
+### ✅ GPG Commit Signing Support
 **Source**: [#7](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/7)
-**Status**: Open
+**Status**: **COMPLETED**
 
 **Problem**: Plugin fails when user has GPG signing enabled. Error: `cannot run gpg: No such file or directory`
 
-**Proposed Implementation**:
-- Add setting for GPG binary location
-- Or add option to disable signing for plugin commits
-- Or detect and skip signing gracefully
-
-**Complexity**: Medium
-**Impact**: Medium
+**Solution**:
+- Added `disableGpgSigning` toggle setting
+- When enabled, commits use `-c commit.gpgsign=false` to skip signing
+- Helpful error message when GPG signing fails, directing users to the setting
+- Does not modify global git configuration
 
 ---
 
@@ -188,18 +186,19 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 |----------|-------|-----------|-----------|
 | P0 | 2 | 2 | 0 |
 | P1 | 4 | 4 | 0 |
-| P2 | 5 | 2 | 3 |
+| P2 | 5 | 3 | 2 |
 | P3 | 1 | 0 | 1 |
-| **Total** | **12** | **8** | **4** |
+| **Total** | **12** | **9** | **3** |
 
 ### What's New in This Release
 
 1. **Branch switching support** - Sync to any branch, not just main
 2. **Git directory selection** - Sync a subdirectory instead of the entire vault
-3. **Custom commit messages** - Configure your own commit message format with variables
-4. **Preserved upstream tracking** - CLI git commands work correctly after sync
-5. **Auto-detect remote URL** - Plugin reads existing git config on first load
-6. **Auto-detect branch** - Plugin reads current branch on first load
-7. **Better conflict display** - Conflicted files now shown with bullet points
-8. **Improved error messages** - Specific, actionable error messages for each failure type
-9. **Consistent messaging** - "URL" properly capitalised throughout
+3. **GPG signing workaround** - Option to disable GPG signing for plugin commits
+4. **Custom commit messages** - Configure your own commit message format with variables
+5. **Preserved upstream tracking** - CLI git commands work correctly after sync
+6. **Auto-detect remote URL** - Plugin reads existing git config on first load
+7. **Auto-detect branch** - Plugin reads current branch on first load
+8. **Better conflict display** - Conflicted files now shown with bullet points
+9. **Improved error messages** - Specific, actionable error messages for each failure type
+10. **Consistent messaging** - "URL" properly capitalised throughout
