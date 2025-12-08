@@ -12,6 +12,7 @@ interface GHSyncSettings {
 	syncinterval: number;
 	isSyncOnLoad: boolean;
 	checkStatusOnLoad: boolean;
+	commitMessageTemplate: string;
 }
 
 const DEFAULT_SETTINGS: GHSyncSettings = {
@@ -20,6 +21,34 @@ const DEFAULT_SETTINGS: GHSyncSettings = {
 	syncinterval: 0,
 	isSyncOnLoad: false,
 	checkStatusOnLoad: true,
+	commitMessageTemplate: '{{hostname}} {{date}} {{time}}',
+}
+
+/**
+ * Format a commit message using the template and available variables
+ */
+function formatCommitMessage(template: string, hostname: string, date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	const seconds = String(date.getSeconds()).padStart(2, '0');
+
+	const dateStr = `${year}-${month}-${day}`;
+	const timeStr = `${hours}:${minutes}:${seconds}`;
+	const datetimeStr = `${dateStr} ${timeStr}`;
+	const iso8601 = date.toISOString();
+
+	return template
+		.replace(/\{\{hostname\}\}/g, hostname)
+		.replace(/\{\{date\}\}/g, dateStr)
+		.replace(/\{\{time\}\}/g, timeStr)
+		.replace(/\{\{datetime\}\}/g, datetimeStr)
+		.replace(/\{\{iso8601\}\}/g, iso8601)
+		.replace(/\{\{year\}\}/g, String(year))
+		.replace(/\{\{month\}\}/g, month)
+		.replace(/\{\{day\}\}/g, day);
 }
 
 
@@ -29,92 +58,145 @@ export default class GHSyncPlugin extends Plugin {
 
 	async SyncNotes()
 	{
-		new Notice("Syncing to GitHub remote")
+		new Notice("Syncing to GitHub remote");
 
 		const remote = this.settings.remoteURL.trim();
 
+		// Validate remote URL is configured
+		if (!remote) {
+			new Notice("GitHub Sync: No remote URL configured.\nGo to Settings > GitHub Sync to set your repository URL.", 10000);
+			return;
+		}
+
+		//@ts-ignore
+		const basePath = this.app.vault.adapter.getBasePath();
+		const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+
 		simpleGitOptions = {
-			//@ts-ignore
-		    baseDir: this.app.vault.adapter.getBasePath(),
-		    binary: this.settings.gitLocation + "git",
-		    maxConcurrentProcesses: 6,
-		    trimmed: false,
+			baseDir: basePath,
+			binary: gitBinary,
+			maxConcurrentProcesses: 6,
+			trimmed: false,
 		};
 		git = simpleGit(simpleGitOptions);
 
 		let os = require("os");
 		let hostname = os.hostname();
 
-		let statusResult = await git.status().catch((e) => {
-			new Notice("Vault is not a Git repo or git binary cannot be found.", 10000);
-			return; })
+		// Check if vault is a git repo and git binary works
+		let statusResult;
+		try {
+			statusResult = await git.status();
+		} catch (e: any) {
+			const errorMsg = e?.message || String(e);
 
-		//@ts-ignore
+			if (errorMsg.includes("not a git repository")) {
+				new Notice("GitHub Sync: Vault is not a Git repository.\n\nRun 'git init' in your vault folder first.", 10000);
+			} else if (errorMsg.includes("ENOENT") || errorMsg.includes("spawn") || errorMsg.includes("not found")) {
+				const binaryInfo = this.settings.gitLocation
+					? `Git binary not found at: ${gitBinary}`
+					: "Git binary not found in system PATH.";
+				new Notice(`GitHub Sync: ${binaryInfo}\n\nInstall Git or set the binary location in settings.`, 10000);
+			} else {
+				new Notice(`GitHub Sync: Git error - ${errorMsg}`, 10000);
+			}
+			return;
+		}
+
+		if (!statusResult) {
+			new Notice("GitHub Sync: Failed to get repository status.", 10000);
+			return;
+		}
+
 		let clean = statusResult.isClean();
 
-    	let date = new Date();
-    	let msg = hostname + " " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + ":" + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+		// Generate commit message from template
+		const date = new Date();
+		const template = this.settings.commitMessageTemplate || DEFAULT_SETTINGS.commitMessageTemplate;
+		const msg = formatCommitMessage(template, hostname, date);
 
-		// git add .
-		// git commit -m hostname-date-time
+		// git add . && git commit
 		if (!clean) {
 			try {
 				await git
-		    		.add("./*")
-		    		.commit(msg);
-		    } catch (e) {
-		    	new Notice(e);
-		    	return;
-		    }
+					.add("./*")
+					.commit(msg);
+			} catch (e: any) {
+				new Notice("GitHub Sync: Commit failed - " + (e?.message || e), 10000);
+				return;
+			}
 		} else {
 			new Notice("Working branch clean");
 		}
 
-		// configure remote
+		// configure remote - use set-url to preserve upstream tracking
 		try {
-			await git.removeRemote('origin').catch((e) => { new Notice(e); });
-			await git.addRemote('origin', remote).catch((e) => { new Notice(e); });
-		}
-		catch (e) {
-			new Notice(e);
+			const remotes = await git.getRemotes(true);
+			const originRemote = remotes.find(r => r.name === 'origin');
+
+			if (originRemote) {
+				// Only update if URL has changed
+				if (originRemote.refs.fetch !== remote && originRemote.refs.push !== remote) {
+					await git.remote(['set-url', 'origin', remote]);
+					new Notice("GitHub Sync: Updated remote origin URL");
+				}
+			} else {
+				// No origin remote exists, add it
+				await git.addRemote('origin', remote);
+				new Notice("GitHub Sync: Added remote origin URL");
+			}
+		} catch (e) {
+			new Notice("GitHub Sync: Failed to configure remote - " + e, 10000);
 			return;
 		}
+
 		// check if remote url valid by fetching
 		try {
 			await git.fetch();
 		} catch (e) {
-			new Notice(e + "\nGitHub Sync: Invalid remote URL.", 10000);
+			new Notice("GitHub Sync: Invalid remote URL or network error.\n" + e, 10000);
 			return;
 		}
 
-		new Notice("GitHub Sync: Successfully set remote origin url");
-
 
 		// git pull origin main
-	    try {
-	    	//@ts-ignore
-	    	await git.pull('origin', 'main', { '--no-rebase': null }, (err, update) => {
-	      		if (update) {
+		try {
+			//@ts-ignore
+			await git.pull('origin', 'main', { '--no-rebase': null }, (err, update) => {
+				if (update) {
 					new Notice("GitHub Sync: Pulled " + update.summary.changes + " changes");
-	      		}
-	   		})
-	    } catch (e) {
-	    	let conflictStatus = await git.status().catch((e) => { new Notice(e, 10000); return; });
-    		let conflictMsg = "Merge conflicts in:";
-	    	//@ts-ignore
-			for (let c of conflictStatus.conflicted)
-			{
-				conflictMsg += "\n\t"+c;
+				}
+			})
+		} catch (e) {
+			// Check for merge conflicts
+			let conflictStatus;
+			try {
+				conflictStatus = await git.status();
+			} catch (statusError) {
+				new Notice("GitHub Sync: Pull failed - " + e, 10000);
+				return;
 			}
-			conflictMsg += "\nResolve them or click sync button again to push with unresolved conflicts."
-			new Notice(conflictMsg)
-			//@ts-ignore	
-			for (let c of conflictStatus.conflicted)
-			{
-				this.app.workspace.openLinkText("", c, true);
+
+			const conflictedFiles = conflictStatus?.conflicted || [];
+
+			if (conflictedFiles.length > 0) {
+				let conflictMsg = "GitHub Sync: Merge conflicts in:";
+				for (const file of conflictedFiles) {
+					conflictMsg += "\n  • " + file;
+				}
+				conflictMsg += "\n\nResolve conflicts and sync again.";
+				new Notice(conflictMsg, 15000);
+
+				// Open conflicted files
+				for (const file of conflictedFiles) {
+					this.app.workspace.openLinkText("", file, true);
+				}
+			} else {
+				// Pull failed but no conflicts detected - show the error
+				new Notice("GitHub Sync: Pull failed - " + e, 10000);
 			}
-	    	return;
-	    }
+			return;
+		}
 
 		// resolve merge conflicts
 		// git push origin main
@@ -215,6 +297,40 @@ export default class GHSyncPlugin extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+		// If remote URL is not set, try to read it from existing git config
+		if (!this.settings.remoteURL) {
+			await this.readRemoteFromGitConfig();
+		}
+	}
+
+	/**
+	 * Read existing remote URL from .git/config if available
+	 */
+	async readRemoteFromGitConfig() {
+		try {
+			//@ts-ignore
+			const basePath = this.app.vault.adapter.getBasePath();
+			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
+
+			const tempGit = simpleGit({
+				baseDir: basePath,
+				binary: gitBinary,
+				maxConcurrentProcesses: 6,
+				trimmed: false,
+			});
+
+			const remotes = await tempGit.getRemotes(true);
+			const origin = remotes.find(r => r.name === 'origin');
+
+			if (origin && origin.refs.fetch) {
+				this.settings.remoteURL = origin.refs.fetch;
+				await this.saveSettings();
+			}
+		} catch (e) {
+			// Silently ignore - this just means we couldn't read the git config
+			// User will need to configure manually
+		}
 	}
 
 	async saveSettings() {
@@ -297,5 +413,17 @@ class GHSyncSettingTab extends PluginSettingTab {
 					this.plugin.settings.syncinterval = Number(value);
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(containerEl)
+			.setName('Commit message template')
+			.setDesc('Customise the commit message. Variables: {{hostname}}, {{date}}, {{time}}, {{datetime}}, {{iso8601}}, {{year}}, {{month}}, {{day}}')
+			.addText(text => text
+				.setPlaceholder('{{hostname}} {{date}} {{time}}')
+				.setValue(this.plugin.settings.commitMessageTemplate)
+				.onChange(async (value) => {
+					this.plugin.settings.commitMessageTemplate = value;
+					await this.plugin.saveSettings();
+				})
+			.inputEl.addClass('my-plugin-setting-text'));
 	}
 }

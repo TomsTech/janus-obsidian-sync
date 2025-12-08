@@ -11,69 +11,83 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-## P0 - Critical
+## Completed
 
-### Fix Upstream Branch Reset Issue
+### ✅ Fix Upstream Branch Reset Issue
 **Source**: [#30](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/30)
-**Status**: Open
+**Status**: **COMPLETED**
 
-**Problem**: After syncing with the plugin, CLI git operations fail with `fatal: The current branch main has no upstream branch`. Users must manually run `git push --set-upstream origin main` after each plugin sync.
+**Problem**: After syncing with the plugin, CLI git operations fail with `fatal: The current branch main has no upstream branch`.
 
-**Root Cause**: The plugin removes and re-adds the remote on every sync (`git.removeRemote('origin')` then `git.addRemote('origin', remote)`), which breaks the upstream tracking configuration.
-
-**Proposed Fix**:
-- Only update remote URL if it has changed
-- Or preserve upstream tracking after remote operations
-- Or use `git remote set-url origin <url>` instead of remove/add
-
-**Complexity**: Low
-**Impact**: High - breaks CLI workflow for all users
+**Solution**: Changed from `removeRemote`/`addRemote` to `git remote set-url` which preserves upstream tracking. Also only updates remote when URL actually changes.
 
 ---
 
-### Fix Conflict Files Not Displayed
+### ✅ Fix Conflict Files Not Displayed
 **Source**: [#13](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/13)
-**Status**: Open
+**Status**: **COMPLETED**
 
 **Problem**: When merge conflicts occur, the notice shows "Merge conflicts in:" but doesn't list the actual filenames.
 
-**Root Cause**: The `conflictStatus.conflicted` array may be empty or the loop isn't iterating correctly.
-
-**Location**: `main.ts:104-108`
-
-**Proposed Fix**: Debug the conflict detection logic and ensure filenames are properly extracted from git status.
-
-**Complexity**: Low
-**Impact**: High - users can't identify which files have conflicts
+**Solution**: Improved conflict detection with proper null checking and better error handling. Files now display with bullet points and longer notice duration (15 seconds).
 
 ---
 
-## P1 - High Priority Features
-
-### Custom Commit Messages
+### ✅ Custom Commit Messages
 **Source**: [#21](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/21)
-**Status**: Open (4 comments)
+**Status**: **COMPLETED**
 
-**Request**: Allow users to customise the commit message format instead of the default `hostname YYYY-M-D:H:M:S`.
+**Request**: Allow users to customise the commit message format.
 
-**Proposed Implementation**:
-- Add setting for commit message template
-- Support variables: `{{hostname}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{iso8601}}`
-- Example: `"Obsidian sync - {{datetime}}"` or `"vault backup {{iso8601}}"`
-- Keep current format as default
-
-**Complexity**: Low
-**Impact**: Medium - frequently requested feature
+**Solution**: Added `commitMessageTemplate` setting with support for variables:
+- `{{hostname}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{iso8601}}`
+- `{{year}}`, `{{month}}`, `{{day}}`
+- Default: `{{hostname}} {{date}} {{time}}`
 
 ---
+
+### ✅ Respect .git/config Settings
+**Source**: [#20](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/20)
+**Status**: **COMPLETED**
+
+**Request**: Don't overwrite existing git configuration.
+
+**Solution**:
+- Plugin now reads existing remote URL from `.git/config` on first load
+- Auto-populates the Remote URL setting field
+- Only updates remote when URL actually changes (preserves custom configs)
+
+---
+
+### ✅ Capitalise "URL" in Messages
+**Source**: [#29](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/29)
+**Status**: **COMPLETED**
+
+**Solution**: Changed "url" to "URL" for consistency.
+
+---
+
+### ✅ Better Error Messages
+**Source**: [#2](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/2), [#32](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/32)
+**Status**: **COMPLETED**
+
+**Problem**: "Vault is not a Git repo or git binary cannot be found" is too vague.
+
+**Solution**: Separate, specific error messages:
+- "No remote URL configured" - with settings guidance
+- "Vault is not a Git repository" - with `git init` instructions
+- "Git binary not found at [path]" - with install/settings guidance
+- "Git error - [actual error]" - for other issues
+
+---
+
+## P1 - High Priority Features (Remaining)
 
 ### Branch Switching Support
 **Source**: [#31](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/31)
 **Status**: Open
 
-**Request**: Ability to switch branches within the plugin for team/enterprise use cases where direct pushes to main aren't allowed.
-
-**Use Case**: Teams using Obsidian for documentation need to work on feature branches before merging to main via PR.
+**Request**: Ability to switch branches within the plugin for team/enterprise use cases.
 
 **Proposed Implementation**:
 - Add branch selector dropdown in settings or ribbon menu
@@ -86,39 +100,11 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-### Respect .git/config Settings
-**Source**: [#20](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/20)
-**Status**: Open
-
-**Request**: Don't overwrite existing git configuration. Respect settings like custom SSH commands and existing remote URLs.
-
-**Problems**:
-1. Remote URL field overwrites existing config on new install
-2. Custom `core.sshCommand` in `.git/config` is not respected
-3. Plugin removes/re-adds remote breaking custom configs
-
-**Proposed Implementation**:
-- Read existing remote URL on first load, populate setting field
-- Don't modify remote if URL matches existing config
-- Ensure simple-git respects local git config
-
-**Complexity**: Medium
-**Impact**: High for users with custom git setups
-
----
-
 ### Git Directory Selection
 **Source**: [#27](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/27)
 **Status**: Open (has implementation PR ready)
 
 **Request**: Allow syncing a subdirectory instead of the entire vault.
-
-**Use Case**: Users with blog setups who only want to commit published posts, not drafts.
-
-**Proposed Implementation**:
-- Dropdown to select subdirectory within vault
-- Default to vault root
-- Save selection in settings
 
 **Note**: [Feature branch exists](https://github.com/socra167/Obsidian-GitHub-Sync/tree/feat/select-git-directory) - consider merging
 
@@ -127,21 +113,21 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-## P2 - Quality of Life
+## P2 - Quality of Life (Remaining)
 
 ### GPG Commit Signing Support
 **Source**: [#7](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/7)
-**Status**: Open (2 comments)
+**Status**: Open
 
-**Problem**: Plugin fails when user has GPG signing enabled in git config. Error: `cannot run gpg: No such file or directory`
+**Problem**: Plugin fails when user has GPG signing enabled. Error: `cannot run gpg: No such file or directory`
 
 **Proposed Implementation**:
-- Add setting for GPG binary location (similar to git binary setting)
+- Add setting for GPG binary location
 - Or add option to disable signing for plugin commits
 - Or detect and skip signing gracefully
 
 **Complexity**: Medium
-**Impact**: Medium - affects security-conscious users
+**Impact**: Medium
 
 ---
 
@@ -154,59 +140,24 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 **Proposed Implementation**:
 - Add setting to specify additional PATH directories
 - Or inherit system PATH properly in Electron environment
-- Add verbose logging option to debug binary resolution issues
 
 **Complexity**: Medium
-**Impact**: Medium - affects Git LFS users
-
----
-
-### Capitalise "URL" in Messages
-**Source**: [#29](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/29)
-**Status**: Open
-
-**Request**: Change "Successfully set remote origin url" to "Successfully set remote origin URL" for consistency.
-
-**Location**: `main.ts:90`
-
-**Complexity**: Trivial
-**Impact**: Low - cosmetic
-
----
-
-### Better Error Messages
-**Source**: [#2](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/2), [#32](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/32)
-**Status**: Multiple issues
-
-**Problem**: "Vault is not a Git repo or git binary cannot be found" is too vague. Users can't diagnose whether it's a git binary issue, missing .git folder, or permission problem.
-
-**Proposed Implementation**:
-- Separate error messages for each failure mode:
-  - "Git binary not found at [path]. Check git binary location setting."
-  - "No .git folder found. Run 'git init' in your vault first."
-  - "Git command failed: [actual error]"
-- Add troubleshooting link to error messages
-
-**Complexity**: Low
-**Impact**: High - reduces support burden
+**Impact**: Medium
 
 ---
 
 ### Collaborator Authentication
 **Source**: [#6](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/6)
-**Status**: Open (5 comments)
+**Status**: Open
 
 **Problem**: When plugin sets remote URL with embedded credentials, collaborators can't authenticate.
 
-**Root Cause**: URL format `https://Username.gitKey@github.com/Owner/Name.git` only works for the repo owner.
-
 **Proposed Implementation**:
 - Use credential helper instead of embedded credentials
-- Or support per-user credential configuration
 - Document SSH key setup for collaborators
 
 **Complexity**: Medium
-**Impact**: Medium - affects shared vaults
+**Impact**: Medium
 
 ---
 
@@ -216,15 +167,9 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 **Source**: [#12](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/12), [#23](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/23)
 **Status**: Multiple requests
 
-**Request**: Support for iOS and Android.
-
 **Challenge**: Mobile Obsidian doesn't have access to git binary. Would require:
 - isomorphic-git (pure JS git implementation) instead of simple-git
-- Or integration with mobile git apps (Working Copy, etc.)
 - Significant architectural changes
-
-**Complexity**: High
-**Impact**: High - frequently requested but major undertaking
 
 **Recommendation**: Out of scope for current architecture. Consider as separate plugin or major version.
 
@@ -232,38 +177,28 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ## Rejected / Won't Fix
 
-### Issue #26 - NEVER MIND
-Closed by user.
-
-### Issue #25 - Support Phone ANDROID
-Duplicate of mobile support request.
-
-### Issue #22 - Plugin Taking Long to Load
-Closed - likely user environment issue.
-
-### Issue #18 - Run Linux
-Closed - Linux is already supported.
+- **#26** - Closed by user
+- **#25** - Duplicate of mobile support
+- **#22** - User environment issue
+- **#18** - Linux is already supported
 
 ---
 
-## Implementation Notes
+## Summary
 
-### Quick Wins (can ship immediately)
-1. Capitalise "URL" in message (#29)
-2. Better error messages (#2, #32)
-3. Fix conflict file display (#13)
+| Priority | Total | Completed | Remaining |
+|----------|-------|-----------|-----------|
+| P0 | 2 | 2 | 0 |
+| P1 | 4 | 2 | 2 |
+| P2 | 5 | 2 | 3 |
+| P3 | 1 | 0 | 1 |
+| **Total** | **12** | **6** | **6** |
 
-### Medium Effort (1-2 days)
-1. Custom commit messages (#21)
-2. Fix upstream branch reset (#30)
-3. Respect .git/config (#20)
-4. Merge git directory selection PR (#27)
+### What's New in This Release
 
-### Larger Features (needs design)
-1. Branch switching (#31)
-2. GPG signing support (#7)
-3. PATH environment support (#28)
-4. Collaborator authentication (#6)
-
-### Out of Scope
-1. Mobile support - requires architectural rewrite
+1. **Custom commit messages** - Configure your own commit message format with variables
+2. **Preserved upstream tracking** - CLI git commands work correctly after sync
+3. **Auto-detect remote URL** - Plugin reads existing git config on first load
+4. **Better conflict display** - Conflicted files now shown with bullet points
+5. **Improved error messages** - Specific, actionable error messages for each failure type
+6. **Consistent messaging** - "URL" properly capitalised throughout

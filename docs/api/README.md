@@ -13,6 +13,7 @@ interface GHSyncSettings {
   syncinterval: number;
   isSyncOnLoad: boolean;
   checkStatusOnLoad: boolean;
+  commitMessageTemplate: string;
 }
 ```
 
@@ -20,11 +21,12 @@ interface GHSyncSettings {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `remoteURL` | string | `""` | GitHub repository URL (HTTPS or SSH format) |
+| `remoteURL` | string | `""` | GitHub repository URL (HTTPS or SSH format). Auto-populated from `.git/config` if available. |
 | `gitLocation` | string | `""` | Optional path to Git binary directory |
 | `syncinterval` | number | `0` | Auto-sync interval in minutes (0 = disabled) |
 | `isSyncOnLoad` | boolean | `false` | Automatically sync on startup if behind remote |
 | `checkStatusOnLoad` | boolean | `true` | Check remote status when Obsidian opens |
+| `commitMessageTemplate` | string | `"{{hostname}} {{date}} {{time}}"` | Template for commit messages |
 
 ---
 
@@ -45,6 +47,10 @@ git@github.com:username/repository.git
 ```
 
 Requires SSH key to be configured with GitHub.
+
+### Auto-Detection
+
+If your vault is already a Git repository with a configured remote, the plugin will automatically read the remote URL from `.git/config` on first load.
 
 ---
 
@@ -70,6 +76,34 @@ C:\Program Files\Git\bin\
 ```
 
 > **Note:** Include the trailing slash. The plugin appends `git` to this path.
+
+---
+
+## Commit Message Template
+
+Customise how commit messages are formatted using template variables.
+
+### Available Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{hostname}}` | Computer hostname | `DESKTOP-ABC123` |
+| `{{date}}` | Date in YYYY-MM-DD format | `2024-03-15` |
+| `{{time}}` | Time in HH:MM:SS format | `14:30:45` |
+| `{{datetime}}` | Combined date and time | `2024-03-15 14:30:45` |
+| `{{iso8601}}` | ISO 8601 timestamp | `2024-03-15T14:30:45.000Z` |
+| `{{year}}` | Four-digit year | `2024` |
+| `{{month}}` | Two-digit month | `03` |
+| `{{day}}` | Two-digit day | `15` |
+
+### Example Templates
+
+| Template | Result |
+|----------|--------|
+| `{{hostname}} {{date}} {{time}}` | `DESKTOP-ABC123 2024-03-15 14:30:45` |
+| `Obsidian sync - {{datetime}}` | `Obsidian sync - 2024-03-15 14:30:45` |
+| `vault backup {{iso8601}}` | `vault backup 2024-03-15T14:30:45.000Z` |
+| `{{date}} notes update` | `2024-03-15 notes update` |
 
 ---
 
@@ -105,28 +139,24 @@ The plugin communicates status through Obsidian notices:
 |--------|-----------|
 | "Syncing to GitHub remote" | Sync operation started |
 | "Working branch clean" | No local changes to commit |
-| "GitHub Sync: Successfully set remote origin url" | Remote configured |
+| "GitHub Sync: Updated remote origin URL" | Remote URL changed |
+| "GitHub Sync: Added remote origin URL" | New remote configured |
 | "GitHub Sync: Pulled X changes" | Changes pulled from remote |
-| "GitHub Sync: Pushed on [hostname] [timestamp]" | Changes pushed successfully |
+| "GitHub Sync: Pushed on [commit message]" | Changes pushed successfully |
 | "GitHub Sync: X commits behind remote..." | Local is behind (on startup check) |
 | "GitHub Sync: up to date with remote." | Local matches remote |
-| "Merge conflicts in: [files]" | Conflicts detected during pull |
-| "Vault is not a Git repo or git binary cannot be found." | Git/repo error |
+| "GitHub Sync: Merge conflicts in: [files]" | Conflicts detected during pull |
 
----
+### Error Messages
 
-## Commit Message Format
-
-Automatic commits use the following format:
-
-```
-[hostname] YYYY-M-D:H:M:S
-```
-
-**Example:**
-```
-DESKTOP-ABC123 2024-3-15:14:30:45
-```
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "No remote URL configured" | Settings not configured | Set repository URL in settings |
+| "Vault is not a Git repository" | No `.git` folder | Run `git init` in vault folder |
+| "Git binary not found" | Git not installed or not in PATH | Install Git or set binary location |
+| "Invalid remote URL or network error" | Bad URL or no internet | Check URL and network connection |
+| "Commit failed" | Git commit error | Check git status manually |
+| "Pull failed" | Git pull error | Check for conflicts or network issues |
 
 ---
 
@@ -144,6 +174,7 @@ Example `data.json`:
   "gitLocation": "",
   "syncinterval": 30,
   "isSyncOnLoad": true,
-  "checkStatusOnLoad": true
+  "checkStatusOnLoad": true,
+  "commitMessageTemplate": "{{hostname}} {{date}} {{time}}"
 }
 ```
