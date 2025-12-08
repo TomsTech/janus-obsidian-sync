@@ -10,6 +10,7 @@ JANUS exposes configuration through Obsidian's settings panel.
 interface GHSyncSettings {
   remoteURL: string;
   gitLocation: string;
+  gitDirectory: string;
   syncinterval: number;
   isSyncOnLoad: boolean;
   checkStatusOnLoad: boolean;
@@ -24,6 +25,7 @@ interface GHSyncSettings {
 |---------|------|---------|-------------|
 | `remoteURL` | string | `""` | GitHub repository URL (HTTPS or SSH format). Auto-populated from `.git/config` if available. |
 | `branch` | string | `"main"` | Branch to sync with. Auto-populated from current git branch if available. |
+| `gitDirectory` | string | `""` | Optional subdirectory within the vault where the .git folder is located. |
 | `gitLocation` | string | `""` | Optional path to Git binary directory |
 | `syncinterval` | number | `0` | Auto-sync interval in minutes (0 = disabled) |
 | `isSyncOnLoad` | boolean | `false` | Automatically sync on startup if behind remote |
@@ -81,6 +83,30 @@ When changing branches:
 3. Updates the setting to remember the branch
 
 > **Warning:** You cannot switch branches with uncommitted changes. Commit or stash your changes first.
+
+---
+
+## Git Directory Configuration
+
+By default, the plugin assumes your vault root is the git repository root. If your git repository is in a subdirectory of your vault, you can specify the path.
+
+### Use Cases
+
+- **Monorepo setups**: Your vault is part of a larger repository
+- **Nested structure**: Only a specific folder in your vault is versioned
+- **Submodule**: Your notes are in a git submodule
+
+### Configuration
+
+Enter the relative path from your vault root to the directory containing the `.git` folder:
+
+| Vault Structure | Git Directory Setting |
+|-----------------|----------------------|
+| `vault/.git/` (root) | *(leave empty)* |
+| `vault/notes/.git/` | `notes` |
+| `vault/subfolder/repo/.git/` | `subfolder/repo` |
+
+> **Note:** Use forward slashes (`/`) for path separators on all platforms.
 
 ---
 
@@ -206,6 +232,7 @@ Example `data.json`:
 {
   "remoteURL": "git@github.com:user/vault.git",
   "gitLocation": "",
+  "gitDirectory": "",
   "syncinterval": 30,
   "isSyncOnLoad": true,
   "checkStatusOnLoad": true,

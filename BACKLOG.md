@@ -97,18 +97,17 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 
 ---
 
-## P1 - High Priority Features (Remaining)
-
-### Git Directory Selection
+### ✅ Git Directory Selection
 **Source**: [#27](https://github.com/kevinmkchin/Obsidian-GitHub-Sync/issues/27)
-**Status**: Open (has implementation PR ready)
+**Status**: **COMPLETED**
 
 **Request**: Allow syncing a subdirectory instead of the entire vault.
 
-**Note**: [Feature branch exists](https://github.com/socra167/Obsidian-GitHub-Sync/tree/feat/select-git-directory) - consider merging
-
-**Complexity**: Low (mostly done)
-**Impact**: Medium
+**Solution**:
+- Added `gitDirectory` setting to specify a subdirectory containing the `.git` folder
+- All git operations now use the configured directory (or vault root if empty)
+- Useful for monorepo setups, nested structures, and submodules
+- Helper method `getGitBasePath()` centralises path resolution
 
 ---
 
@@ -188,18 +187,19 @@ Feature requests and improvements sourced from [upstream issues](https://github.
 | Priority | Total | Completed | Remaining |
 |----------|-------|-----------|-----------|
 | P0 | 2 | 2 | 0 |
-| P1 | 4 | 3 | 1 |
+| P1 | 4 | 4 | 0 |
 | P2 | 5 | 2 | 3 |
 | P3 | 1 | 0 | 1 |
-| **Total** | **12** | **7** | **5** |
+| **Total** | **12** | **8** | **4** |
 
 ### What's New in This Release
 
 1. **Branch switching support** - Sync to any branch, not just main
-2. **Custom commit messages** - Configure your own commit message format with variables
-3. **Preserved upstream tracking** - CLI git commands work correctly after sync
-4. **Auto-detect remote URL** - Plugin reads existing git config on first load
-5. **Auto-detect branch** - Plugin reads current branch on first load
-6. **Better conflict display** - Conflicted files now shown with bullet points
-7. **Improved error messages** - Specific, actionable error messages for each failure type
-8. **Consistent messaging** - "URL" properly capitalised throughout
+2. **Git directory selection** - Sync a subdirectory instead of the entire vault
+3. **Custom commit messages** - Configure your own commit message format with variables
+4. **Preserved upstream tracking** - CLI git commands work correctly after sync
+5. **Auto-detect remote URL** - Plugin reads existing git config on first load
+6. **Auto-detect branch** - Plugin reads current branch on first load
+7. **Better conflict display** - Conflicted files now shown with bullet points
+8. **Improved error messages** - Specific, actionable error messages for each failure type
+9. **Consistent messaging** - "URL" properly capitalised throughout

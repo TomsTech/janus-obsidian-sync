@@ -9,6 +9,7 @@ let git: SimpleGit;
 interface GHSyncSettings {
 	remoteURL: string;
 	gitLocation: string;
+	gitDirectory: string;
 	syncinterval: number;
 	isSyncOnLoad: boolean;
 	checkStatusOnLoad: boolean;
@@ -19,6 +20,7 @@ interface GHSyncSettings {
 const DEFAULT_SETTINGS: GHSyncSettings = {
 	remoteURL: '',
 	gitLocation: '',
+	gitDirectory: '',
 	syncinterval: 0,
 	isSyncOnLoad: false,
 	checkStatusOnLoad: true,
@@ -58,6 +60,20 @@ export default class GHSyncPlugin extends Plugin {
 
 	settings: GHSyncSettings;
 
+	/**
+	 * Get the base path for git operations
+	 * Returns either the configured git directory or the vault root
+	 */
+	getGitBasePath(): string {
+		//@ts-ignore
+		const vaultPath = this.app.vault.adapter.getBasePath();
+		if (this.settings.gitDirectory && this.settings.gitDirectory.trim()) {
+			const path = require('path');
+			return path.join(vaultPath, this.settings.gitDirectory.trim());
+		}
+		return vaultPath;
+	}
+
 	async SyncNotes()
 	{
 		new Notice("Syncing to GitHub remote");
@@ -70,8 +86,7 @@ export default class GHSyncPlugin extends Plugin {
 			return;
 		}
 
-		//@ts-ignore
-		const basePath = this.app.vault.adapter.getBasePath();
+		const basePath = this.getGitBasePath();
 		const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 
 		simpleGitOptions = {
@@ -219,8 +234,7 @@ export default class GHSyncPlugin extends Plugin {
 		try {
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 			simpleGitOptions = {
-				//@ts-ignore
-			    baseDir: this.app.vault.adapter.getBasePath(),
+			    baseDir: this.getGitBasePath(),
 			    binary: gitBinary,
 			    maxConcurrentProcesses: 6,
 			    trimmed: false,
@@ -331,8 +345,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async getCurrentBranch(): Promise<string | null> {
 		try {
-			//@ts-ignore
-			const basePath = this.app.vault.adapter.getBasePath();
+			const basePath = this.getGitBasePath();
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 
 			const tempGit = simpleGit({
@@ -354,8 +367,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async getLocalBranches(): Promise<string[]> {
 		try {
-			//@ts-ignore
-			const basePath = this.app.vault.adapter.getBasePath();
+			const basePath = this.getGitBasePath();
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 
 			const tempGit = simpleGit({
@@ -377,8 +389,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async switchBranch(branchName: string): Promise<boolean> {
 		try {
-			//@ts-ignore
-			const basePath = this.app.vault.adapter.getBasePath();
+			const basePath = this.getGitBasePath();
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 
 			const tempGit = simpleGit({
@@ -411,8 +422,7 @@ export default class GHSyncPlugin extends Plugin {
 	 */
 	async readRemoteFromGitConfig() {
 		try {
-			//@ts-ignore
-			const basePath = this.app.vault.adapter.getBasePath();
+			const basePath = this.getGitBasePath();
 			const gitBinary = this.settings.gitLocation ? this.settings.gitLocation + "git" : "git";
 
 			const tempGit = simpleGit({
@@ -529,7 +539,19 @@ class GHSyncSettingTab extends PluginSettingTab {
 			}));
 
 		new Setting(containerEl)
-			.setName('git binary location')
+			.setName('Git directory')
+			.setDesc('Optional subdirectory within the vault where the .git folder is located. Leave empty to use vault root.')
+			.addText(text => text
+				.setPlaceholder('e.g., notes or subfolder/myrepo')
+				.setValue(this.plugin.settings.gitDirectory)
+				.onChange(async (value) => {
+					this.plugin.settings.gitDirectory = value;
+					await this.plugin.saveSettings();
+				})
+        	.inputEl.addClass('my-plugin-setting-text2'));
+
+		new Setting(containerEl)
+			.setName('Git binary location')
 			.setDesc('This is optional! Set this only if git is not findable via your system PATH, then provide its location here. See README for more info.')
 			.addText(text => text
 				.setPlaceholder('')
